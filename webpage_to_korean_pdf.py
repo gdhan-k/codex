@@ -56,6 +56,47 @@ class TextExtractor(HTMLParser):
             self.parts.append(stripped)
 
 
+def _decode_response_body(raw_bytes: bytes, response) -> str:
+    """Decode HTTP response bytes using declared charset with safe fallbacks."""
+    charset = None
+    headers = getattr(response, "headers", None)
+
+    if headers is not None:
+        get_content_charset = getattr(headers, "get_content_charset", None)
+        if callable(get_content_charset):
+            charset = get_content_charset()
+
+        if not charset:
+            content_type = headers.get("Content-Type", "")
+            match = re.search(r"charset=([\w\-]+)", content_type, flags=re.IGNORECASE)
+            if match:
+                charset = match.group(1).strip('"').strip("'")
+
+    tried: list[str] = []
+
+    def _try_decode(enc: str) -> str | None:
+        nonlocal tried
+        if not enc or enc.lower() in tried:
+            return None
+        tried.append(enc.lower())
+        try:
+            return raw_bytes.decode(enc)
+        except (LookupError, UnicodeDecodeError):
+            return None
+
+    if charset:
+        decoded = _try_decode(charset)
+        if decoded is not None:
+            return decoded
+
+    for fallback in ("utf-8", "cp949", "euc-kr", "shift_jis", "iso-8859-1"):
+        decoded = _try_decode(fallback)
+        if decoded is not None:
+            return decoded
+
+    return raw_bytes.decode("utf-8", errors="ignore")
+
+
 def fetch_webpage_text(url: str, timeout_s: int) -> str:
     """Fetch a webpage and extract visible text."""
     req = urllib.request.Request(
@@ -70,7 +111,7 @@ def fetch_webpage_text(url: str, timeout_s: int) -> str:
 
     try:
         with urllib.request.urlopen(req, timeout=timeout_s) as response:
-            raw_html = response.read().decode("utf-8", errors="ignore")
+            raw_html = _decode_response_body(response.read(), response)
     except Exception as exc:
         raise WebpageTranslationError(f"웹페이지를 불러오지 못했습니다: {exc}") from exc
 

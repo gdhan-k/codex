@@ -69,3 +69,38 @@ def test_chunk_text_wraps_oversized_paragraph_after_flushing_current():
     assert chunks[0] == "short"
     assert all(len(chunk) <= 30 for chunk in chunks)
     assert "x" * 50 not in chunks
+
+
+
+def test_decode_response_body_uses_declared_charset():
+    class StubHeaders(dict):
+        def get_content_charset(self):
+            return None
+
+    class StubResponse:
+        def __init__(self):
+            self.headers = StubHeaders({"Content-Type": "text/html; charset=euc-kr"})
+
+    original = "안녕하세요"
+    raw = original.encode("euc-kr")
+
+    decoded = app._decode_response_body(raw, StubResponse())
+
+    assert decoded == original
+
+
+def test_decode_response_body_falls_back_when_charset_invalid():
+    class StubHeaders(dict):
+        def get_content_charset(self):
+            return "unknown-charset"
+
+    class StubResponse:
+        def __init__(self):
+            self.headers = StubHeaders()
+
+    original = "hello"
+    raw = original.encode("utf-8")
+
+    decoded = app._decode_response_body(raw, StubResponse())
+
+    assert decoded == original
