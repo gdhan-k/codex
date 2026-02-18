@@ -32,17 +32,19 @@ class TranslationConfig:
 class TextExtractor(HTMLParser):
     """Collect visible text from HTML while skipping non-content tags."""
 
+    _CONTAINER_SKIP_TAGS = {"script", "style", "noscript", "svg"}
+
     def __init__(self) -> None:
         super().__init__()
         self._skip_depth = 0
         self.parts: list[str] = []
 
     def handle_starttag(self, tag: str, attrs) -> None:
-        if tag in {"script", "style", "noscript", "svg", "meta", "link"}:
+        if tag in self._CONTAINER_SKIP_TAGS:
             self._skip_depth += 1
 
     def handle_endtag(self, tag: str) -> None:
-        if tag in {"script", "style", "noscript", "svg", "meta", "link"} and self._skip_depth:
+        if tag in self._CONTAINER_SKIP_TAGS and self._skip_depth:
             self._skip_depth -= 1
 
     def handle_data(self, data: str) -> None:

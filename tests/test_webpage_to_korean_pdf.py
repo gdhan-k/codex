@@ -30,3 +30,14 @@ def test_write_pdf_creates_file(tmp_path: Path):
     assert output.exists()
     assert output.stat().st_size > 0
     assert output.read_bytes().startswith(b"%PDF")
+
+
+def test_text_extractor_does_not_drop_body_after_meta_or_link():
+    parser = app.TextExtractor()
+    parser.feed(
+        "<html><head><meta charset='utf-8'><link rel='stylesheet' href='a.css'></head>"
+        "<body><h1>Hello</h1><p>World</p></body></html>"
+    )
+
+    assert "Hello" in parser.parts
+    assert "World" in parser.parts
