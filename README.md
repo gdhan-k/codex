@@ -23,6 +23,12 @@ python webpage_to_korean_pdf.py "https://example.com" -o result.pdf
 1. `urllib`로 웹페이지 HTML을 가져옵니다.
 2. 표준 라이브러리 `HTMLParser`로 본문 텍스트를 추출합니다.
 3. Google 번역 비공식 엔드포인트를 호출해 한국어로 번역합니다.
+4. 번역 단계와 PDF 생성 단계의 진행률(%)을 콘솔에 표시합니다.
+5. 내장 PDF writer 로직으로 번역 결과 PDF를 생성합니다.
+
+## 참고
+
+- PDF 줄바꿈 폭은 페이지 여백/폰트 크기를 기준으로 계산되어 오른쪽 잘림을 줄입니다.
 4. 내장 PDF writer 로직으로 번역 결과 PDF를 생성합니다.
 
 ## 참고

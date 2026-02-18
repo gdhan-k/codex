@@ -23,6 +23,11 @@ def test_translate_text_uses_translate_chunk(monkeypatch):
     assert "KO:" in result
 
 
+def test_compute_line_capacity_uses_page_width():
+    # A4 width(595) with 좌우 margin 50 and font size 12 -> floor(495/12)=41
+    assert app._compute_line_capacity(page_width=595, margin_x=50, font_size=12) == 41
+
+
 def test_write_pdf_creates_file(tmp_path: Path):
     output = tmp_path / "out.pdf"
     app.write_pdf("테스트 문장입니다.", output, title="demo")
@@ -41,3 +46,17 @@ def test_text_extractor_does_not_drop_body_after_meta_or_link():
 
     assert "Hello" in parser.parts
     assert "World" in parser.parts
+
+
+def test_translate_text_prints_progress(monkeypatch, capsys):
+    def stub_translate(chunk, source, target, timeout):
+        return chunk
+
+    monkeypatch.setattr(app, "_translate_chunk", stub_translate)
+
+    cfg = app.TranslationConfig(source_lang="en", target_lang="ko", chunk_size=5)
+    app.translate_text("hello\nworld", cfg)
+
+    out = capsys.readouterr().out
+    assert "번역 진행률" in out
+    assert "100%" in out

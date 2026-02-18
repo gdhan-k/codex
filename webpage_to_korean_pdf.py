@@ -7,6 +7,7 @@ This implementation intentionally uses only Python standard library modules.
 from __future__ import annotations
 
 import argparse
+import math
 import json
 import re
 import textwrap
@@ -149,6 +150,15 @@ def _translate_chunk(chunk: str, source: str, target: str, timeout_s: int) -> st
 
 def translate_text(text: str, config: TranslationConfig) -> str:
     chunks = chunk_text(text, config.chunk_size)
+    translated = []
+    total_chunks = len(chunks)
+    for index, chunk in enumerate(chunks, start=1):
+        translated.append(
+            _translate_chunk(chunk, config.source_lang, config.target_lang, config.timeout_s)
+        )
+        _print_progress("번역", index, total_chunks)
+    if total_chunks:
+        print()
     translated = [
         _translate_chunk(chunk, config.source_lang, config.target_lang, config.timeout_s)
         for chunk in chunks
@@ -160,6 +170,19 @@ def _pdf_escape(text: str) -> str:
     return text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
 
 
+def _compute_line_capacity(page_width: int, margin_x: int, font_size: int) -> int:
+    """Estimate how many full-width glyphs fit on one line."""
+    available_width = max(page_width - (2 * margin_x), font_size)
+    return max(1, math.floor(available_width / font_size))
+
+
+def _print_progress(stage: str, current: int, total: int) -> None:
+    if total <= 0:
+        return
+    percent = int((current / total) * 100)
+    print(f"\r{stage} 진행률: {percent:3d}% ({current}/{total})", end="", flush=True)
+
+
 def write_pdf(text: str, output_path: Path, title: str) -> None:
     """Write translated text into a basic multi-page PDF.
 
@@ -168,6 +191,14 @@ def write_pdf(text: str, output_path: Path, title: str) -> None:
     """
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    line_capacity = _compute_line_capacity(page_width=595, margin_x=50, font_size=12)
+
+    lines = []
+    title_lines = textwrap.wrap(f"번역 결과: {title}", width=line_capacity) or [""]
+    lines.extend(title_lines)
+    lines.append("")
+    for para in text.split("\n"):
+        wrapped = textwrap.wrap(para, width=line_capacity) or [""]
     lines = [f"번역 결과: {title}", ""]
     for para in text.split("\n"):
         wrapped = textwrap.wrap(para, width=46) or [""]
@@ -228,6 +259,10 @@ def write_pdf(text: str, output_path: Path, title: str) -> None:
             f"/Resources << /Font << /F1 {font_obj} 0 R >> >> /Contents {content_id} 0 R >>"
         )
         page_obj_ids.append(page_id)
+        _print_progress("PDF", len(page_obj_ids), len(pages))
+
+    if pages:
+        print()
 
     kids = " ".join(f"{pid} 0 R" for pid in page_obj_ids)
     pages_obj = add_obj(f"<< /Type /Pages /Kids [{kids}] /Count {len(page_obj_ids)} >>")
@@ -278,6 +313,14 @@ def main() -> None:
     args = build_arg_parser().parse_args()
     config = TranslationConfig(source_lang=args.source_lang, target_lang=args.target_lang)
 
+    print("[1/3] 웹페이지 가져오는 중...")
+    original_text = fetch_webpage_text(args.url, timeout_s=config.timeout_s)
+    print("[1/3] 완료")
+
+    print("[2/3] 번역 중...")
+    translated_text = translate_text(original_text, config)
+
+    print("[3/3] PDF 생성 중...")
     original_text = fetch_webpage_text(args.url, timeout_s=config.timeout_s)
     translated_text = translate_text(original_text, config)
     write_pdf(translated_text, Path(args.output), title=args.url)
