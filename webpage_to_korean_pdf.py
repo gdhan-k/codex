@@ -159,6 +159,10 @@ def translate_text(text: str, config: TranslationConfig) -> str:
         _print_progress("번역", index, total_chunks)
     if total_chunks:
         print()
+    translated = [
+        _translate_chunk(chunk, config.source_lang, config.target_lang, config.timeout_s)
+        for chunk in chunks
+    ]
     return "\n\n".join(translated)
 
 
@@ -195,6 +199,9 @@ def write_pdf(text: str, output_path: Path, title: str) -> None:
     lines.append("")
     for para in text.split("\n"):
         wrapped = textwrap.wrap(para, width=line_capacity) or [""]
+    lines = [f"번역 결과: {title}", ""]
+    for para in text.split("\n"):
+        wrapped = textwrap.wrap(para, width=46) or [""]
         lines.extend(wrapped)
 
     page_line_limit = 40
@@ -314,6 +321,8 @@ def main() -> None:
     translated_text = translate_text(original_text, config)
 
     print("[3/3] PDF 생성 중...")
+    original_text = fetch_webpage_text(args.url, timeout_s=config.timeout_s)
+    translated_text = translate_text(original_text, config)
     write_pdf(translated_text, Path(args.output), title=args.url)
 
     print(f"완료: PDF 파일이 생성되었습니다 -> {args.output}")

@@ -29,5 +29,9 @@ python webpage_to_korean_pdf.py "https://example.com" -o result.pdf
 ## 참고
 
 - PDF 줄바꿈 폭은 페이지 여백/폰트 크기를 기준으로 계산되어 오른쪽 잘림을 줄입니다.
+4. 내장 PDF writer 로직으로 번역 결과 PDF를 생성합니다.
+
+## 참고
+
 - 번역 API 정책/네트워크 상태에 따라 실패할 수 있습니다.
 - 일부 사이트는 봇 차단 정책으로 텍스트 추출이 어려울 수 있습니다.
